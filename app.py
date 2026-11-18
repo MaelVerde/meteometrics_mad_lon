@@ -1,22 +1,26 @@
-import requests 
+import pandas as pd
+import requests
 
-url_mad = "https://meteometrics.rlopez.org/historical-data/MAD" 
-url_lon = "https://meteometrics.rlopez.org/historical-data/LON" 
+url_mad = "https://meteometrics.rlopez.org/historical-data/MAD"
+url_lon = "https://meteometrics.rlopez.org/historical-data/LON"
 
-try: 
-# Realiza la petición para Madrid 
-    response = requests.get(url_mad) 
-    response.raise_for_status() 
-    raw_data_madrid = response.json() 
-    print(raw_data_madrid[:2]) 
-    
-    print() 
+try:
+    response = requests.get(url_mad)
+    response.raise_for_status()
+    raw_data_madrid = response.json()
 
-# Realiza la petición para Londres 
-    response = requests.get(url_lon) 
-    response.raise_for_status() 
-    raw_data_londres = response.json() 
-    print(raw_data_londres[:2]) 
+    response = requests.get(url_lon)
+    response.raise_for_status()
+    raw_data_londres = response.json()
 
-except requests.exceptions.RequestException as e: 
-    print(f'Error en la petición: {e}') 
+    df_madrid = pd.json_normalize(raw_data_madrid)
+    df_madrid["city"] = "Madrid"
+
+    df_londres = pd.json_normalize(raw_data_londres)
+    df_londres["city"] = "Londres"
+
+    df = pd.concat([df_madrid, df_londres], ignore_index=True)
+    print(df)
+
+except requests.exceptions.RequestException as e:
+    print(f"Error en la petición: {e}")
