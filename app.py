@@ -136,6 +136,17 @@ try:
         informe, encoding="utf-8"
     )
 
+    # Crea la carpeta de salida y guarda los tres dataframes usando PyArrow.
+    data_dir = Path(__file__).with_name("data")
+    data_dir.mkdir(parents=True, exist_ok=True)
+    df_total.to_parquet(data_dir / "df_total.parquet", engine="pyarrow", index=False)
+    resumen_ciudad.to_parquet(
+        data_dir / "resumen_ciudad.parquet", engine="pyarrow", index=False
+    )
+    resumen_anual.to_parquet(
+        data_dir / "resumen_anual.parquet", engine="pyarrow", index=False
+    )
+
     print(df_total)
     print("\nResumen por ciudad:")
     print(resumen_ciudad)
