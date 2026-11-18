@@ -70,6 +70,62 @@ try:
     df.loc[precipitacion_en_pulgadas, "metrics.precipitation.avg"] *= 25.4
     df.loc[precipitacion_en_pulgadas, "metrics.precipitation.unit"] = "mm"
 
+    df_total = df.copy()
+
+    # Calcula la amplitud entre máximas y mínimas mensuales.
+    df_total["thermal_range"] = (
+        df_total["metrics.temperature.max"]
+        - df_total["metrics.temperature.min"]
+    )
+
+    # Acumula la lluvia dentro de cada ciudad y año, respetando el orden cronológico.
+    df_total["cumulative_rain_year"] = df_total.groupby(
+        ["city", "year"]
+    )["metrics.precipitation.avg"].cumsum()
+
+    # Mide el estrés con la máxima y el déficit relativo frente a la lluvia máxima anual.
+    lluvia_maxima_anual = df_total.groupby(["city", "year"])[
+        "metrics.precipitation.avg"
+    ].transform("max")
+    deficit_relativo_lluvia = 1 - (
+        df_total["metrics.precipitation.avg"]
+        / lluvia_maxima_anual.where(lluvia_maxima_anual.ne(0))
+    )
+    df_total["kpi.heat_stress_index"] = (
+        df_total["metrics.temperature.max"] * deficit_relativo_lluvia
+    )
+
+    # Compara la temperatura media mensual con el historial de cada ciudad.
+    media_historica_ciudad = df_total.groupby("city")[
+        "metrics.temperature.avg"
+    ].transform("mean")
+    desviacion_ciudad = df_total.groupby("city")[
+        "metrics.temperature.avg"
+    ].transform("std")
+    df_total["kpi.temp_zscore"] = (
+        df_total["metrics.temperature.avg"] - media_historica_ciudad
+    ) / desviacion_ciudad
+
+    # Resume la media térmica histórica y la precipitación total por ciudad.
+    resumen_ciudad = (
+        df_total.groupby("city")
+        .agg(
+            temperatura_media_historica=("metrics.temperature.avg", "mean"),
+            precipitacion_total=("metrics.precipitation.avg", "sum"),
+        )
+        .reset_index()
+    )
+
+    # Resume las temperaturas extremas de cada combinación de ciudad y año.
+    resumen_anual = (
+        df_total.groupby(["city", "year"])
+        .agg(
+            temperatura_maxima_absoluta=("metrics.temperature.max", "max"),
+            temperatura_minima_absoluta=("metrics.temperature.min", "min"),
+        )
+        .reset_index()
+    )
+
     registros_finales = len(df)
     informe = (
         f"Registros iniciales: {registros_iniciales}\n"
@@ -80,7 +136,11 @@ try:
         informe, encoding="utf-8"
     )
 
-    print(df)
+    print(df_total)
+    print("\nResumen por ciudad:")
+    print(resumen_ciudad)
+    print("\nResumen anual por ciudad:")
+    print(resumen_anual)
 
 except requests.exceptions.RequestException as e:
     print(f"Error en la petición: {e}")
